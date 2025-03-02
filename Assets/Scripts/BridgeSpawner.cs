@@ -4,7 +4,7 @@ using UnityEngine;
 public class BridgeSpawner : MonoBehaviour
 {
     public GameObject bridgePrefab; // Assign the bridge prefab in the Inspector
-    private GameObject currentBridge; // Stores the active bridge
+    public GameObject currentBridge; // Stores the active bridge
     public Transform spawnPoint; // Where the bridge spawns (should be near the player)
     public float growthSpeed = 2f;
     public float forceAmount = 500f; // Adjust the force strength
@@ -64,6 +64,16 @@ public class BridgeSpawner : MonoBehaviour
 
         // Apply force at the top
         rb.AddForceAtPosition(Vector3.forward * forceAmount, topPosition, ForceMode.Impulse);
+
+        // Wait for the bridge to settle
+        yield return new WaitForSeconds(3f);
+        //yield return new WaitUntil(() => rb.linearVelocity.magnitude < 0.1f);
+
+        // Get the new top position after the bridge has settled
+        Vector3 settledTopPosition = currentBridge.transform.position + (currentBridge.transform.up * currentBridge.transform.localScale.y);
+
+        // Move the player to the top point of the bridge
+        player.GetComponent<PlayerMovement>().MoveOnBridge(settledTopPosition);
 
         yield return null; // Just to allow physics to process
     }

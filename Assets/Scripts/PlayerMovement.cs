@@ -33,6 +33,10 @@ public class PlayerMovement : MonoBehaviour
     Rigidbody rb;
     Animator animator;
 
+    bool isAutoMove = false;
+    public Vector3 moveTarget;
+    public bool isOnNewPillar = false;
+
     private void Start()
     {
         rb = GetComponent<Rigidbody>();
@@ -46,21 +50,64 @@ public class PlayerMovement : MonoBehaviour
     private void Update()
     {
         // ground check
-        grounded = Physics.Raycast(transform.position, Vector3.down, playerHeight * 0.5f + 0.3f, whatIsGround);
+        //grounded = Physics.Raycast(transform.position, Vector3.down, playerHeight * 0.5f + 0.3f, whatIsGround);
 
         MyInput();
         SpeedControl();
 
-        // handle drag
-        if (grounded)
-            rb.linearDamping = groundDrag;
-        else
-            rb.linearDamping = 0;
+        //// handle drag
+        //if (grounded)
+        //    rb.linearDamping = groundDrag;
+        //else
+        //    rb.linearDamping = 0;
     }
 
     private void FixedUpdate()
     {
         MovePlayer();
+    }
+
+    private void MovePlayer()
+    {
+        if (isAutoMove)
+        {
+            moveDirection = (moveTarget - transform.position).normalized;
+            if (Vector3.Distance(transform.position, moveTarget) < 0.1f)
+            {
+                animator.SetBool("IsMove", false);
+                rb.linearVelocity = Vector3.zero;
+                isAutoMove = false;
+                moveTarget = Vector3.zero;
+                Destroy(FindFirstObjectByType<BridgeSpawner>().currentBridge);
+            }
+            else
+            {
+                animator.SetBool("IsMove", true);
+                rb.linearVelocity = new Vector3(moveDirection.x * moveSpeed, rb.linearVelocity.y, moveDirection.z * moveSpeed);
+            }
+        }
+        else
+        {
+            // calculate movement direction
+            moveDirection = orientation.forward * verticalInput + orientation.right * horizontalInput;
+
+            if (moveDirection == Vector3.zero)
+            {
+                animator.SetBool("IsMove", false);
+            }
+            else
+            {
+                animator.SetBool("IsMove", true);
+            }
+
+            rb.linearVelocity = new Vector3(moveDirection.x * moveSpeed * 0.25f, rb.linearVelocity.y, moveDirection.z * moveSpeed * 0.25f);
+        }
+    }
+
+    public void MoveOnBridge(Vector3 target)
+    {
+        moveTarget = target;
+        isAutoMove = true;
     }
 
     private void MyInput()
@@ -69,37 +116,28 @@ public class PlayerMovement : MonoBehaviour
         verticalInput = Input.GetAxis("Vertical");
 
         // when to jump
-        if (Input.GetKey(jumpKey) && readyToJump && grounded)
-        {
-            readyToJump = false;
+        //if (Input.GetKey(jumpKey) && readyToJump && grounded)
+        //{
+        //    readyToJump = false;
 
-            Jump();
+        //    Jump();
 
-            Invoke(nameof(ResetJump), jumpCooldown);
-        }
+        //    Invoke(nameof(ResetJump), jumpCooldown);
+        //}
     }
 
-    private void MovePlayer()
+    private void OnCollisionEnter(Collision collision)
     {
-        // calculate movement direction
-        moveDirection = orientation.forward * verticalInput + orientation.right * horizontalInput;
-
-        if (moveDirection == Vector3.zero)
+        if (collision.gameObject.CompareTag("Plane"))
         {
-            animator.SetBool("IsMove", false);
+            GameController.Instance.isLose = true;
         }
         else
+        if (collision.gameObject == FindFirstObjectByType<PillarController>().nextPillar)
         {
-            animator.SetBool("IsMove", true);
+            GameController.Instance.AddScore(1);
+            isOnNewPillar = true;
         }
-
-        // on ground
-        if (grounded)
-            rb.AddForce(moveDirection.normalized * moveSpeed * 10f, ForceMode.Force);
-
-        // in air
-        else if (!grounded)
-            rb.AddForce(moveDirection.normalized * moveSpeed * 10f * airMultiplier, ForceMode.Force);
     }
 
     private void SpeedControl()
@@ -113,7 +151,6 @@ public class PlayerMovement : MonoBehaviour
             rb.linearVelocity = new Vector3(limitedVel.x, rb.linearVelocity.y, limitedVel.z);
         }
     }
-
     private void Jump()
     {
         // reset y velocity

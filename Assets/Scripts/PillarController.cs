@@ -11,8 +11,11 @@ public class PillarController : MonoBehaviour
     [Header("Key Bind")]
     public KeyCode key;
 
+    PlayerMovement player;
+
     void Awake()
     {
+        player = FindFirstObjectByType<PlayerMovement>();
         currentPillar = Instantiate(pillar, new Vector3(0, 0, 0), Quaternion.identity);
     }
 
@@ -29,16 +32,18 @@ public class PillarController : MonoBehaviour
     private IEnumerator SpawnPillars()
     {
         // Note: <40 is for testing
-        while (!GameController.Instance.isLose && GameController.Instance.currentWave < 40)
+        while (!GameController.Instance.isLose)
         {
+            if (GameController.Instance.isLose) yield return null;
+
             Vector3 currentPillarPos = currentPillar.transform.position;
-            GameObject nextPillar = Instantiate(pillar,
+            nextPillar = Instantiate(pillar,
                     new Vector3(currentPillarPos.x, 0, currentPillarPos.z + Random.Range(1f, 5f)),
                     Quaternion.identity);
 
             if (GameController.Instance.currentWave < GameController.Instance.mediumWave)
             {
-                // Easy Wave: Ffixed pillars
+                // Easy Wave: Fixed pillars
                 yield return null;
             }
             else if (GameController.Instance.currentWave < GameController.Instance.hardWave)
@@ -52,7 +57,9 @@ public class PillarController : MonoBehaviour
                 yield return RandomizePillar(nextPillar);
             }
 
-            yield return new WaitForSeconds(1f);
+            //yield return new WaitForSeconds(1f);
+            yield return new WaitUntil(() => player.isOnNewPillar);
+            player.isOnNewPillar = false;
             currentPillar = nextPillar;
             GameController.Instance.currentWave++;
         }

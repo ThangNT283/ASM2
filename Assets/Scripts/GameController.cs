@@ -1,3 +1,4 @@
+using TMPro;
 using UnityEngine;
 
 public class GameController : MonoBehaviour
@@ -5,6 +6,8 @@ public class GameController : MonoBehaviour
     public static GameController Instance { get; private set; }
 
     [Header("Game Status")]
+    public int score = 0;
+    public TextMeshProUGUI scoreText;
     public bool isLose = false;
 
     [Header("Wave Properties")]
@@ -27,15 +30,9 @@ public class GameController : MonoBehaviour
         }
     }
 
-    // Start is called once before the first execution of Update after the MonoBehaviour is created
-    void Start()
+    public void AddScore(int value)
     {
-
-    }
-
-    // Update is called once per frame
-    void Update()
-    {
-
+        score += value;
+        scoreText.text = "SCORE: " + score.ToString();
     }
 }
