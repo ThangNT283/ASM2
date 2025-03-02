@@ -12,6 +12,8 @@ public class GameController : MonoBehaviour
     public int mediumWave = 6;
     public int hardWave = 11;
 
+    public bool isChangeCameraPos = false;
+
     private void Awake()
     {
         if (Instance == null)
