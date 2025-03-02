@@ -72,7 +72,8 @@ public class PlayerMovement : MonoBehaviour
         if (isAutoMove)
         {
             moveDirection = (moveTarget - transform.position).normalized;
-            if (Vector3.Distance(transform.position, moveTarget) < 0.1f)
+            //if (Vector3.Distance(transform.position, moveTarget) < 0.1f)
+            if (Mathf.Abs(transform.position.z - moveTarget.z) < 0.1f)
             {
                 animator.SetBool("IsMove", false);
                 rb.linearVelocity = Vector3.zero;

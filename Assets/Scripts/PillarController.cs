@@ -31,14 +31,15 @@ public class PillarController : MonoBehaviour
 
     private IEnumerator SpawnPillars()
     {
-        // Note: <40 is for testing
         while (!GameController.Instance.isLose)
         {
             if (GameController.Instance.isLose) yield return null;
 
             Vector3 currentPillarPos = currentPillar.transform.position;
+            float randomValue = Random.Range(0f, 3f);
+            float minDistance = randomValue <= 2f ? 1f : 2.5f;
             nextPillar = Instantiate(pillar,
-                    new Vector3(currentPillarPos.x, 0, currentPillarPos.z + Random.Range(1f, 5f)),
+                    new Vector3(currentPillarPos.x, 0, currentPillarPos.z + Random.Range(minDistance, 5f)),
                     Quaternion.identity);
 
             if (GameController.Instance.currentWave < GameController.Instance.mediumWave)
@@ -54,7 +55,7 @@ public class PillarController : MonoBehaviour
             else
             {
                 // Hard Wave: Randomize fixed, moving or height changing pillar
-                yield return RandomizePillar(nextPillar);
+                yield return RandomizePillar(nextPillar, randomValue);
             }
 
             //yield return new WaitForSeconds(1f);
@@ -62,6 +63,8 @@ public class PillarController : MonoBehaviour
             player.isOnNewPillar = false;
             currentPillar = nextPillar;
             GameController.Instance.currentWave++;
+            yield return new WaitForSeconds(1f);
+
         }
     }
 
@@ -98,7 +101,7 @@ public class PillarController : MonoBehaviour
         bool isStopped = false;
         float scaleSpeed = Random.Range(1f, 2.5f);
         float minScale = 0.5f;
-        float maxScale = 2f;
+        float maxScale = 1.5f;
 
         while (!isStopped)
         {
@@ -110,16 +113,15 @@ public class PillarController : MonoBehaviour
         }
     }
 
-    private IEnumerator RandomizePillar(GameObject pillar)
+    private IEnumerator RandomizePillar(GameObject pillar, float randomValue)
     {
         Vector3 currentPillarPos = currentPillar.transform.position;
-        float value = Random.Range(0f, 3f);
 
-        if (value <= 1f)
+        if (randomValue <= 1f)
         {
             yield return null;
         }
-        else if (value <= 2f)
+        else if (randomValue <= 2f)
         {
             yield return StartCoroutine(MovePillar(pillar, currentPillarPos));
         }
