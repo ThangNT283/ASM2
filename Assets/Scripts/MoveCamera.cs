@@ -11,7 +11,7 @@ public class MoveCamera : MonoBehaviour
         if (Input.GetKeyDown(KeyCode.M))
         {
             isSideView = !isSideView; // Toggle camera view
-            GameController.Instance.isChangeCameraPos = isSideView;
+            GameController.Instance.IsChangeCameraPos = isSideView;
         }
 
         // Smoothly move the camera between positions

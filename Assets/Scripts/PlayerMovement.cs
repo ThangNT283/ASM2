@@ -2,169 +2,163 @@ using UnityEngine;
 
 public class PlayerMovement : MonoBehaviour
 {
+    #region Variables
+    Rigidbody _rb;
+    Animator _animator;
+
     [Header("Movement")]
-    public float moveSpeed;
+    [SerializeField] private float _moveSpd;
+    [SerializeField] private float _jumpForce;
+    [SerializeField] private float _jumpCooldown;
+    [SerializeField] private bool _readyToJump = true;
+    [SerializeField] private bool _grounded;
 
-    public float groundDrag;
+    [Header("Settings")]
+    [SerializeField] private Transform _orientation;
+    [SerializeField] private Transform _ground;
+    [SerializeField] private KeyCode _jumpKey;
 
-    public float jumpForce;
-    public float jumpCooldown;
-    public float airMultiplier;
-    bool readyToJump;
+    private float _horizontalInput;
+    private float _verticalInput;
 
-    [HideInInspector] public float walkSpeed;
-    [HideInInspector] public float sprintSpeed;
+    private Vector3 _moveTarget;
+    private bool _isMovingToBridge = false;
+    private bool _isOnNewPillar = false;
 
-    [Header("Keybinds")]
-    public KeyCode jumpKey = KeyCode.Space;
+    public bool IsOnNewPillar { get => _isOnNewPillar; set => _isOnNewPillar = value; }
+    #endregion
 
-    [Header("Ground Check")]
-    public float playerHeight;
-    public LayerMask whatIsGround;
-    bool grounded;
-
-    public Transform orientation;
-
-    float horizontalInput;
-    float verticalInput;
-
-    Vector3 moveDirection;
-
-    Rigidbody rb;
-    Animator animator;
-
-    bool isAutoMove = false;
-    public Vector3 moveTarget;
-    public bool isOnNewPillar = false;
-
-    private void Start()
+    #region Unity Methods
+    // Initialize components
+    private void Awake()
     {
-        rb = GetComponent<Rigidbody>();
-        rb.freezeRotation = true;
-
-        animator = GetComponentInChildren<Animator>();
-
-        readyToJump = true;
+        _rb = GetComponent<Rigidbody>();
+        _rb.freezeRotation = true;
+        _animator = GetComponentInChildren<Animator>();
     }
 
+    // Get player input every frame
     private void Update()
     {
-        // ground check
-        //grounded = Physics.Raycast(transform.position, Vector3.down, playerHeight * 0.5f + 0.3f, whatIsGround);
-
+        _grounded = Physics.Raycast(transform.position, Vector3.down, 1.1f);
         MyInput();
-        SpeedControl();
 
-        //// handle drag
-        //if (grounded)
-        //    rb.linearDamping = groundDrag;
-        //else
-        //    rb.linearDamping = 0;
+        if (_isMovingToBridge && Mathf.Abs(transform.position.z - _moveTarget.z) < 0.1f)
+        {
+            _moveTarget = Vector3.zero;
+            _isMovingToBridge = false;
+            Destroy(FindFirstObjectByType<BridgeSpawner>().CurrentBridge);
+        }
     }
 
+    // Move player every fixed frame
     private void FixedUpdate()
     {
         MovePlayer();
     }
 
-    private void MovePlayer()
-    {
-        if (isAutoMove)
-        {
-            moveDirection = (moveTarget - transform.position).normalized;
-            //if (Vector3.Distance(transform.position, moveTarget) < 0.1f)
-            if (Mathf.Abs(transform.position.z - moveTarget.z) < 0.1f)
-            {
-                animator.SetBool("IsMove", false);
-                rb.linearVelocity = Vector3.zero;
-                isAutoMove = false;
-                moveTarget = Vector3.zero;
-                Destroy(FindFirstObjectByType<BridgeSpawner>().currentBridge);
-            }
-            else
-            {
-                animator.SetBool("IsMove", true);
-                rb.linearVelocity = new Vector3(moveDirection.x * moveSpeed, rb.linearVelocity.y, moveDirection.z * moveSpeed);
-            }
-        }
-        else
-        {
-            // calculate movement direction
-            moveDirection = orientation.forward * verticalInput + orientation.right * horizontalInput;
-
-            if (moveDirection == Vector3.zero)
-            {
-                animator.SetBool("IsMove", false);
-            }
-            else
-            {
-                animator.SetBool("IsMove", true);
-            }
-
-            rb.linearVelocity = new Vector3(moveDirection.x * moveSpeed * 0.25f, rb.linearVelocity.y, moveDirection.z * moveSpeed * 0.25f);
-        }
-    }
-
-    public void MoveOnBridge(Vector3 target)
-    {
-        moveTarget = target;
-        isAutoMove = true;
-    }
-
-    private void MyInput()
-    {
-        horizontalInput = Input.GetAxis("Horizontal");
-        verticalInput = Input.GetAxis("Vertical");
-
-        // when to jump
-        //if (Input.GetKey(jumpKey) && readyToJump && grounded)
-        //{
-        //    readyToJump = false;
-
-        //    Jump();
-
-        //    Invoke(nameof(ResetJump), jumpCooldown);
-        //}
-    }
-
+    // Check collision with other objects
     private void OnCollisionEnter(Collision collision)
     {
+        // Lose when hit the plane
         if (collision.gameObject.CompareTag("Plane"))
         {
-            GameController.Instance.isLose = true;
+            GameController.Instance.IsLose = true;
         }
-        else
-        if (collision.gameObject == FindFirstObjectByType<PillarController>().nextPillar)
+        // Add score when reach the next pillar
+        else if (collision.gameObject == FindFirstObjectByType<PillarController>().NextPillar)
         {
             GameController.Instance.AddScore(1);
-            isOnNewPillar = true;
+            GameController.Instance.AddPillar();
+            _isOnNewPillar = true;
         }
     }
+    #endregion
 
-    private void SpeedControl()
+    #region Methods
+    // Move player in automatic mode or manual mode
+    private void MovePlayer()
     {
-        Vector3 flatVel = new Vector3(rb.linearVelocity.x, 0f, rb.linearVelocity.z);
+        Vector3 moveDirection;
 
-        // limit velocity if needed
-        if (flatVel.magnitude > moveSpeed)
+        //if (_isAutoMove)
+        //{
+        //    // Automatic mode
+        //    moveDirection = (_moveTarget - transform.position).normalized;
+
+        //    // Stop moving when close to target
+        //    if (Mathf.Abs(transform.position.z - _moveTarget.z) < 0.1f)
+        //    {
+        //        _animator.SetBool("IsMove", false);
+        //        _rb.linearVelocity = Vector3.zero;
+        //        _isAutoMove = false;
+        //        _moveTarget = Vector3.zero;
+
+        //        // Destroy the bridge after player moves
+        //        Destroy(FindFirstObjectByType<BridgeSpawner>().CurrentBridge);
+        //    }
+        //    else
+        //    {
+        //        _animator.SetBool("IsMove", true);
+        //        _rb.linearVelocity = new Vector3(moveDirection.x * _moveSpd, _rb.linearVelocity.y, moveDirection.z * _moveSpd);
+        //    }
+        //}
+        //else
+        //{
+        // Manual mode
+        moveDirection = _orientation.forward * _verticalInput + _orientation.right * _horizontalInput;
+
+        // Stop moving when no input
+        if (moveDirection == Vector3.zero) _animator.SetBool("IsMove", false);
+        else _animator.SetBool("IsMove", true);
+
+        int multiplier = FindFirstObjectByType<Bridge>() ? 3 : 1;
+        _rb.linearVelocity = new Vector3(moveDirection.x * _moveSpd * 0.25f * multiplier,
+            _rb.linearVelocity.y,
+            moveDirection.z * _moveSpd * 0.25f * multiplier);
+        //}
+
+        // Keep player on the ground
+        _ground.position = new Vector3(transform.position.x, _ground.position.y, transform.position.z);
+    }
+
+    // Enable automatic mode for player movement
+    public void StartAutoMove(Vector3 target)
+    {
+        _moveTarget = target;
+        _isMovingToBridge = true;
+    }
+
+    // Get player input
+    private void MyInput()
+    {
+        _horizontalInput = Input.GetAxis("Horizontal");
+        _verticalInput = Input.GetAxis("Vertical");
+
+        if (Input.GetKey(_jumpKey) && _readyToJump)
         {
-            Vector3 limitedVel = flatVel.normalized * moveSpeed;
-            rb.linearVelocity = new Vector3(limitedVel.x, rb.linearVelocity.y, limitedVel.z);
+            _readyToJump = false;
+
+            Jump();
+
+            Invoke(nameof(ResetJump), _jumpCooldown);
         }
     }
+
+    // Make player jump 
     private void Jump()
     {
-        // reset y velocity
-        rb.linearVelocity = new Vector3(rb.linearVelocity.x, 0f, rb.linearVelocity.z);
+        // Reset y velocity
+        _rb.linearVelocity = new Vector3(_rb.linearVelocity.x, 0f, _rb.linearVelocity.z);
 
-        rb.AddForce(transform.up * jumpForce, ForceMode.Impulse);
+        // Add force to jump
+        _rb.AddForce(transform.up * _jumpForce, ForceMode.Impulse);
     }
+
+    // Reset jump status
     private void ResetJump()
     {
-        readyToJump = true;
+        _readyToJump = true;
     }
-    private void OnDrawGizmos()
-    {
-        Gizmos.DrawLine(transform.position, transform.position + Vector3.down * .3f);
-    }
+    #endregion
 }

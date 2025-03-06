@@ -1,0 +1,24 @@
+fileFormatVersion: 2
+guid: a0ecf6d325eb2f24abfb13e70179236e
+labels:
+- Antique
+- Architecture
+- Column
+- Environment
+- Greek
+- Pillar
+- Prop
+- Stone
+NativeFormatImporter:
+  externalObjects: {}
+  mainObjectFileID: 0
+  userData: 
+  assetBundleName: 
+  assetBundleVariant: 
+AssetOrigin:
+  serializedVersion: 1
+  productId: 13103
+  packageName: Pillars and columns
+  packageVersion: 1.0
+  assetPath: Assets/Meshes/Pillars/Greek/Pillar greek prefab.prefab
+  uploadId: 29459

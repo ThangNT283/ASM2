@@ -3,78 +3,113 @@ using UnityEngine;
 
 public class BridgeSpawner : MonoBehaviour
 {
-    public GameObject bridgePrefab; // Assign the bridge prefab in the Inspector
-    public GameObject currentBridge; // Stores the active bridge
-    public Transform spawnPoint; // Where the bridge spawns (should be near the player)
-    public float growthSpeed = 2f;
-    public float forceAmount = 500f; // Adjust the force strength
+    #region Variables
+    [SerializeField] private GameObject _bridge;
+    [SerializeField] private Transform _spawnPoint;
+    [SerializeField] private GameObject _currentBridge;
+    [SerializeField] private float _growthSpd = 2f;
+    [SerializeField] private float _fallingForce = 1f;
+    [SerializeField] private GameObject _obstacle;
 
-    [SerializeField] private Transform player;
-    private bool isGrowing = false;
-    private bool isSpawning = false;
+    private Transform _player;
+
+    private bool _isGrowing = false;
+    private bool _isSpawning = false;
+    private bool _isFalling = false;
+
+    public GameObject CurrentBridge { get => _currentBridge; }
+    #endregion
+
+    #region Unity Methods
+    private void Awake()
+    {
+        _player = FindFirstObjectByType<PlayerMovement>().transform;
+    }
 
     void Update()
     {
-        if (Input.GetMouseButtonDown(0)) // Click to spawn a new bridge
+        // Hold left mouse button to start growing the bridge
+        if (!_isFalling && Input.GetMouseButtonDown(0))
         {
             SpawnBridge();
-            isGrowing = true;
+            _isGrowing = true;
         }
 
-        if (Input.GetMouseButtonUp(0)) // Release to stop growing & apply force at top
+        // Release left mouse button to stop growing & apply force at top to make it fall
+        if (Input.GetMouseButtonUp(0) && !_isFalling)
         {
-            isGrowing = false;
-            isSpawning = false;
-            StartCoroutine(ApplyForceAtTop());
+            _isGrowing = false;
+            _isSpawning = false;
+            _isFalling = true;
+            StartCoroutine(ApplyTopForce());
         }
 
-        if (isGrowing && currentBridge != null)
+        // Grow the bridge
+        if (_isGrowing && _currentBridge != null)
         {
-            currentBridge.transform.localScale += new Vector3(0, growthSpeed * Time.deltaTime, 0);
+            _currentBridge.transform.localScale += new Vector3(0, _growthSpd * Time.deltaTime, 0);
         }
     }
+    #endregion
 
+    #region Methods
+    // Spawn a bridge at the spawn point
     void SpawnBridge()
     {
-        if (isSpawning) return;
-        isSpawning = true;
-        currentBridge = Instantiate(bridgePrefab, spawnPoint.position, Quaternion.identity);
-        currentBridge.transform.rotation = player.transform.rotation;
+        if (_isSpawning) return;
+
+        _isSpawning = true;
+        _currentBridge = Instantiate(_bridge, _spawnPoint.position, Quaternion.identity);
+        _currentBridge.transform.rotation = _player.transform.rotation; // Align with player rotation
 
         // Add Rigidbody if not already attached
-        if (!currentBridge.GetComponent<Rigidbody>())
+        if (!_currentBridge.GetComponent<Rigidbody>())
         {
-            Rigidbody rb = currentBridge.AddComponent<Rigidbody>();
+            Rigidbody rb = _currentBridge.AddComponent<Rigidbody>();
             rb.isKinematic = true; // Prevent immediate physics interactions
             rb.mass = 5;
         }
     }
 
-    private IEnumerator ApplyForceAtTop()
+    // Apply force at the top of the bridge to make it fall
+    private IEnumerator ApplyTopForce()
     {
-        if (currentBridge == null) yield break;
+        if (_currentBridge == null) yield break;
 
-        // Enable Rigidbody Physics
-        Rigidbody rb = currentBridge.GetComponent<Rigidbody>();
-        rb.isKinematic = false;  // Allow physics to take control
-        rb.useGravity = true;     // Enable gravity
+        // Enable physics
+        Rigidbody rb = _currentBridge.GetComponent<Rigidbody>();
+        rb.isKinematic = false;
+        rb.useGravity = true;
 
-        // Calculate the top position of the bridge
-        Vector3 topPosition = currentBridge.transform.position + (currentBridge.transform.up * (currentBridge.transform.localScale.y * 2));
+        // Get bridge top position
+        Vector3 topPosition = _currentBridge.transform.position +
+            (_currentBridge.transform.up * (_currentBridge.transform.localScale.y * 2));
 
-        // Apply force at the top
-        rb.AddForceAtPosition(Vector3.forward * forceAmount, topPosition, ForceMode.Impulse);
+        // Apply force at the top position
+        rb.AddForceAtPosition(Vector3.forward * _fallingForce, topPosition, ForceMode.Impulse);
 
         // Wait for the bridge to settle
-        yield return new WaitForSeconds(3f);
-        //yield return new WaitUntil(() => rb.linearVelocity.magnitude < 0.1f);
+        yield return new WaitForSeconds(2.5f);
+        _isFalling = false;
+        _currentBridge.GetComponent<BoxCollider>().enabled = true;
 
         // Get the new top position after the bridge has settled
-        Vector3 settledTopPosition = currentBridge.transform.position + (currentBridge.transform.up * currentBridge.transform.localScale.y);
+        Vector3 settledTopPosition = _currentBridge.transform.position +
+            (_currentBridge.transform.up * _currentBridge.transform.localScale.y);
 
-        // Move the player to the top point of the bridge
-        player.GetComponent<PlayerMovement>().MoveOnBridge(settledTopPosition);
+        // Randomly spawn an obstacle on the bridge
+        if (Random.value <= 1f)
+        {
+            Vector3 obstaclePosition = _currentBridge.transform.position +
+                (_currentBridge.transform.up * (_currentBridge.transform.localScale.y) / 2);
+            obstaclePosition.y += 0.2f;
+            Instantiate(_obstacle, obstaclePosition, Quaternion.identity);
+        }
 
-        yield return null; // Just to allow physics to process
+        // Move the player to the top point
+        _player.GetComponent<PlayerMovement>().StartAutoMove(settledTopPosition);
+
+        yield return null;
     }
+    #endregion
 }
